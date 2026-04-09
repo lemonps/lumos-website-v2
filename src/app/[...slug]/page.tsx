@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { WebflowPage } from "@/components/webflow-page";
 import {
   getDocumentForSegments,
   getMetadataForSegments,
   getStaticSlugParams,
 } from "@/lib/webflow-site";
+import { WebflowPageClient } from "@/components/webflow-page-client";
 
 type CatchAllPageProps = {
   params: Promise<{ slug: string[] }>;
@@ -32,5 +32,5 @@ export default async function CatchAllPage({ params }: CatchAllPageProps) {
     notFound();
   }
 
-  return <WebflowPage document={document} />;
+  return <WebflowPageClient document={document} />;
 }

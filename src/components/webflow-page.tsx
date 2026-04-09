@@ -1,5 +1,7 @@
-import Script from "next/script";
+"use client";
+
 import type { ParsedHtmlDocument } from "@/lib/webflow-site";
+import { WebflowRuntime } from "@/components/webflow-runtime";
 
 type WebflowPageProps = {
   document: ParsedHtmlDocument;
@@ -665,86 +667,125 @@ function buildFeatureSliderScript() {
   `;
 }
 
+function buildSlideInCopyScript() {
+  return `
+    (() => {
+      const init = () => {
+        const copy = document.querySelector('.lumos-intro__copy');
+        if (!copy || copy.dataset.slideReady === 'true') return;
+
+        const text = copy.textContent || '';
+        copy.innerHTML = text
+          .split('')
+          .map((char, i) =>
+            \`<span class="char" style="animation-delay:\${i * 30}ms">\${char === ' ' ? '&nbsp;' : char}</span>\`
+          )
+          .join('');
+        copy.dataset.slideReady = 'true';
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    })();
+  `;
+}
+
+function buildBlurInTitleScript() {
+  return `
+    (() => {
+      const DESKTOP_BREAKPOINT = 767;
+
+      const fitTitle = (title) => {
+        if (!(title instanceof HTMLElement)) {
+          return;
+        }
+
+        if (window.innerWidth <= DESKTOP_BREAKPOINT) {
+          title.style.removeProperty('--lumos-intro-title-size');
+          return;
+        }
+
+        const container = title.closest('.lumos-intro__content');
+        if (!(container instanceof HTMLElement)) {
+          return;
+        }
+
+        title.style.removeProperty('--lumos-intro-title-size');
+
+        const viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+        const availableWidth = Math.min(container.clientWidth, viewportWidth - 64);
+        const measuredWidth = title.scrollWidth;
+        const currentSize = parseFloat(window.getComputedStyle(title).fontSize);
+
+        if (!availableWidth || !measuredWidth || !currentSize) {
+          return;
+        }
+
+        const fittedSize = currentSize * Math.min(1, (availableWidth / measuredWidth) * 0.98);
+        title.style.setProperty('--lumos-intro-title-size', \`\${Math.max(24, fittedSize).toFixed(2)}px\`);
+      };
+
+      const init = () => {
+        const title = document.querySelector('.lumos-intro__title');
+        if (!title || title.dataset.blurReady === 'true') return;
+        const text = title.textContent || '';
+        const words = text.trim().split(/\\s+/);
+        title.innerHTML = words
+          .map((word, i) =>
+            \`<span class="word" style="animation-delay:\${i * 280}ms">\${word}</span>\`
+          )
+          .join(' ');
+        title.dataset.blurReady = 'true';
+
+        fitTitle(title);
+        window.addEventListener('resize', () => fitTitle(title));
+        window.addEventListener('load', () => fitTitle(title), { once: true });
+
+        if (document.fonts?.ready) {
+          document.fonts.ready.then(() => fitTitle(title));
+        }
+
+        if (typeof ResizeObserver !== 'undefined') {
+          const observer = new ResizeObserver(() => fitTitle(title));
+          const container = title.closest('.lumos-intro__content');
+
+          if (container instanceof HTMLElement) {
+            observer.observe(container);
+          }
+        }
+      };
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    })();
+  `;
+}
+
 export function WebflowPage({ document }: WebflowPageProps) {
+  const runtimeScripts = [
+    buildHtmlAttributeScript(document.htmlAttributes),
+    buildExternalRuntimeScript(document.externalScripts),
+    buildNavbarScript(),
+    buildMotionScript(),
+    buildQuestionsAccordionScript(),
+    buildFeatureSliderScript(),
+    buildSlideInCopyScript(),
+    buildBlurInTitleScript(),
+  ];
+
   return (
     <>
-      <script
-        dangerouslySetInnerHTML={{
-          __html: buildHtmlAttributeScript(document.htmlAttributes),
-        }}
+      <div
+        suppressHydrationWarning
+        dangerouslySetInnerHTML={{ __html: document.bodyHtml }}
       />
-      {document.jsonLdBlocks.map((jsonLd, index) => (
-        <script
-          key={`json-ld-${index}`}
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLd }}
-        />
-      ))}
-      <div dangerouslySetInnerHTML={{ __html: document.bodyHtml }} />
-      <Script id="external-runtime-loader" strategy="afterInteractive">
-        {buildExternalRuntimeScript(document.externalScripts)}
-      </Script>
-      <Script id="navbar-menu" strategy="afterInteractive">
-        {buildNavbarScript()}
-      </Script>
-      <Script id="motion-effects" strategy="afterInteractive">
-        {buildMotionScript()}
-      </Script>
-      <Script id="questions-accordion" strategy="afterInteractive">
-        {buildQuestionsAccordionScript()}
-      </Script>
-      <Script id="feature-slider" strategy="afterInteractive">
-        {buildFeatureSliderScript()}
-      </Script>
-      <Script id="slide-in-copy" strategy="afterInteractive">
-        {`
-          (() => {
-            const init = () => {
-              const copy = document.querySelector('.lumos-intro__copy');
-              if (!copy || copy.dataset.slideReady === 'true') return;
-
-              const text = copy.textContent || '';
-              copy.innerHTML = text
-                .split('')
-                .map((char, i) =>
-                  \`<span class="char" style="animation-delay:\${i * 30}ms">\${char === ' ' ? '&nbsp;' : char}</span>\`
-                )
-                .join('');
-              copy.dataset.slideReady = 'true';
-            };
-
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', init, { once: true });
-            } else {
-              init();
-            }
-          })();
-        `}
-      </Script>
-      <Script id="blur-in-title" strategy="afterInteractive">
-        {`
-          (() => {
-            const init = () => {
-              const title = document.querySelector('.lumos-intro__title');
-              if (!title || title.dataset.blurReady === 'true') return;
-              const text = title.textContent || '';
-              const words = text.trim().split(/\\s+/);
-              title.innerHTML = words
-                .map((word, i) =>
-                  \`<span class="word" style="animation-delay:\${i * 280}ms">\${word}</span>\`
-                )
-                .join(' ');
-              title.dataset.blurReady = 'true';
-            };
-
-            if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', init, { once: true });
-            } else {
-              init();
-            }
-          })();
-        `}
-      </Script>
+      <WebflowRuntime scripts={runtimeScripts} />
     </>
   );
 }

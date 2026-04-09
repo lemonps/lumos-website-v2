@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { WebflowPage } from "@/components/webflow-page";
 import {
   getDocumentForSegments,
   getMetadataForSegments,
 } from "@/lib/webflow-site";
+import { WebflowPageClient } from "@/components/webflow-page-client";
 
 export const metadata: Metadata = getMetadataForSegments([]);
 
@@ -14,5 +14,5 @@ export default function HomePage() {
     throw new Error("Missing site-export/index.html");
   }
 
-  return <WebflowPage document={document} />;
+  return <WebflowPageClient document={document} />;
 }
